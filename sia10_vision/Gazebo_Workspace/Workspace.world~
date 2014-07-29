@@ -1,0 +1,742 @@
+<?xml version="1.0"?>
+<sdf version="1.4">
+  <world name="Workspace">
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <model name='motoman_sia10d'>
+      <link name='base_link'>
+				<pose>0 0 0 0 -0 0</pose>
+				<inertial>
+	  			<pose>0 0 0 0 -0 0</pose>
+	  			<mass>400</mass>
+	  			<inertia>
+	    			<ixx>1</ixx>
+	 				  <ixy>0</ixy>
+	 			   <ixz>0</ixz>
+	 			   <iyy>1</iyy>
+				    <iyz>0</iyz>
+				    <izz>1</izz>
+					</inertia>
+				</inertial>
+				<collision name='base_link_collision'>
+					<pose>0 0 0 0 -0 0</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/collision/MOTOMAN_BASE.stl</uri>
+						</mesh>
+					</geometry>
+					<surface>
+						<contact>
+							<ode/>
+						</contact>
+						<friction>
+							<ode/>
+						</friction>
+					</surface>
+				</collision>
+				<visual name='base_link_visual'>
+					<pose>0 0 0 0 -0 0</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/visual/MOTOMAN_BASE.stl</uri>
+						</mesh>
+					</geometry>
+					<material>
+						<script>
+							<name>Gazebo/Blue</name>
+							<uri>__default__</uri>
+						</script>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<velocity_decay>
+					<linear>0</linear>
+					<angular>0</angular>
+				</velocity_decay>
+				<self_collide>1</self_collide>
+						</link>
+						<joint name='world-base' type='revolute'>
+				<child>base_link</child>
+				<parent>world</parent>
+				<axis>
+					<limit>
+						<lower>0</lower>
+						<upper>0</upper>
+					</limit>
+					<dynamics>
+						<damping>0</damping>
+					</dynamics>
+					<xyz>0 0 1</xyz>
+				</axis>
+						</joint>
+						<link name='link_s'>
+				<pose>0 0 0.36 0 -0 0</pose>
+				<inertial>
+					<pose>0 0.00464519 -0.0189763 0 -0 0</pose>
+					<mass>13.7461</mass>
+					<inertia>
+						<ixx>0.0700278</ixx>
+						<ixy>0</ixy>
+						<ixz>0</ixz>
+						<iyy>0.0778083</iyy>
+						<iyz>0</iyz>
+						<izz>0.0436547</izz>
+					</inertia>
+				</inertial>
+				<collision name='link_s_collision'>
+					<pose>0 0 0 0 -0 0</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/collision/MOTOMAN_AXIS_S.stl</uri>
+						</mesh>
+					</geometry>
+					<surface>
+						<contact>
+							<ode/>
+						</contact>
+						<friction>
+							<ode/>
+						</friction>
+					</surface>
+				</collision>
+				<visual name='link_s_visual'>
+					<pose>0 0 0 0 -0 0</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/visual/MOTOMAN_AXIS_S.stl</uri>
+						</mesh>
+					</geometry>
+					<material>
+						<script>
+							<name>Gazebo/White</name>
+							<uri>__default__</uri>
+						</script>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<velocity_decay>
+					<linear>0</linear>
+					<angular>0</angular>
+				</velocity_decay>
+				<self_collide>1</self_collide>
+						</link>
+						<joint name='joint_s' type='revolute'>
+				<child>link_s</child>
+				<parent>base_link</parent>
+				<axis>
+					<xyz>0 0 1</xyz>
+					<limit>
+						<lower>-3.1416</lower>
+						<upper>3.1416</upper>
+						<effort>100</effort>
+						<velocity>2.96</velocity>
+					</limit>
+					<dynamics/>
+				</axis>
+						</joint>
+						<link name='link_l'>
+				<pose>0 0 0.36 0 -0 0</pose>
+				<inertial>
+					<pose>0.114221 0 0.0189351 0 -0 0</pose>
+					<mass>5.228</mass>
+					<inertia>
+						<ixx>0.0160634</ixx>
+						<ixy>0</ixy>
+						<ixz>0</ixz>
+						<iyy>0.105229</iyy>
+						<iyz>0</iyz>
+						<izz>0.102509</izz>
+					</inertia>
+				</inertial>
+				<collision name='link_l_collision'>
+					<pose>0 0 0 -1.57159 -7.34641e-06 -3.14159</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/collision/MOTOMAN_AXIS_L.stl</uri>
+						</mesh>
+					</geometry>
+					<surface>
+						<contact>
+							<ode/>
+						</contact>
+						<friction>
+							<ode/>
+						</friction>
+					</surface>
+				</collision>
+				<visual name='link_l_visual'>
+					<pose>0 0 0 -1.57159 -7.34641e-06 -3.14159</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/visual/MOTOMAN_AXIS_L.stl</uri>
+						</mesh>
+					</geometry>
+					<material>
+						<script>
+							<name>Gazebo/Blue</name>
+							<uri>__default__</uri>
+						</script>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<velocity_decay>
+					<linear>0</linear>
+					<angular>0</angular>
+				</velocity_decay>
+				<self_collide>1</self_collide>
+						</link>
+						<joint name='joint_l' type='revolute'>
+				<child>link_l</child>
+				<parent>link_s</parent>
+				<axis>
+					<xyz>0 1 0</xyz>
+					<limit>
+						<lower>-1.91</lower>
+						<upper>1.91</upper>
+						<effort>100</effort>
+						<velocity>2.96</velocity>
+					</limit>
+					<dynamics/>
+				</axis>
+						</joint>
+						<link name='link_e'>
+				<pose>0 0 0.72 0 -0 0</pose>
+				<inertial>
+					<pose>0 -0.011901 -0.036024 0 -0 0</pose>
+					<mass>4.7092</mass>
+					<inertia>
+						<ixx>0.0301903</ixx>
+						<ixy>0</ixy>
+						<ixz>0</ixz>
+						<iyy>0.0309433</iyy>
+						<iyz>0</iyz>
+						<izz>0.00967602</izz>
+					</inertia>
+				</inertial>
+				<collision name='link_e_collision'>
+					<pose>0 0 0 0 -0 3.1415</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/collision/MOTOMAN_AXIS_E.stl</uri>
+						</mesh>
+					</geometry>
+					<surface>
+						<contact>
+							<ode/>
+						</contact>
+						<friction>
+							<ode/>
+						</friction>
+					</surface>
+				</collision>
+				<visual name='link_e_visual'>
+					<pose>0 0 0 0 -0 3.1415</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/visual/MOTOMAN_AXIS_E.stl</uri>
+						</mesh>
+					</geometry>
+					<material>
+						<script>
+							<name>Gazebo/White</name>
+							<uri>__default__</uri>
+						</script>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<velocity_decay>
+					<linear>0</linear>
+					<angular>0</angular>
+				</velocity_decay>
+				<self_collide>1</self_collide>
+						</link>
+						<joint name='joint_e' type='revolute'>
+				<child>link_e</child>
+				<parent>link_l</parent>
+				<axis>
+					<xyz>0 0 1</xyz>
+					<limit>
+						<lower>-2.96</lower>
+						<upper>2.96</upper>
+						<effort>100</effort>
+						<velocity>2.96</velocity>
+					</limit>
+					<dynamics/>
+				</axis>
+						</joint>
+						<link name='link_u'>
+				<pose>0 0 0.72 0 -0 0</pose>
+				<inertial>
+					<pose>0 -0.0156594 0.135258 0 -0 0</pose>
+					<mass>3.14886</mass>
+					<inertia>
+						<ixx>0.0838401</ixx>
+						<ixy>0</ixy>
+						<ixz>0</ixz>
+						<iyy>0.00616419</iyy>
+						<iyz>0</iyz>
+						<izz>0.0832918</izz>
+					</inertia>
+				</inertial>
+				<collision name='link_u_collision'>
+					<pose>0 0 0 -1.57159 -9.26536e-05 3.14159</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/collision/MOTOMAN_AXIS_U.stl</uri>
+						</mesh>
+					</geometry>
+					<surface>
+						<contact>
+							<ode/>
+						</contact>
+						<friction>
+							<ode/>
+						</friction>
+					</surface>
+				</collision>
+				<visual name='link_u_visual'>
+					<pose>0 0 0 -1.57159 -9.26536e-05 3.14159</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/visual/MOTOMAN_AXIS_U.stl</uri>
+						</mesh>
+					</geometry>
+					<material>
+						<script>
+							<name>Gazebo/Blue</name>
+							<uri>__default__</uri>
+						</script>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<velocity_decay>
+					<linear>0</linear>
+					<angular>0</angular>
+				</velocity_decay>
+				<self_collide>1</self_collide>
+						</link>
+						<joint name='joint_u' type='revolute'>
+				<child>link_u</child>
+				<parent>link_e</parent>
+				<axis>
+					<xyz>0 -1 0</xyz>
+					<limit>
+						<lower>-2.35</lower>
+						<upper>2.35</upper>
+						<effort>100</effort>
+						<velocity>2.96</velocity>
+					</limit>
+					<dynamics/>
+				</axis>
+						</joint>
+						<link name='link_r'>
+				<pose>0 0 1.08 0 -0 0</pose>
+				<inertial>
+					<pose>0 -0.0112718 -0.0416 0 -0 0</pose>
+					<mass>3.02709</mass>
+					<inertia>
+						<ixx>0.0174711</ixx>
+						<ixy>0</ixy>
+						<ixz>0</ixz>
+						<iyy>0.0171753</iyy>
+						<iyz>0</iyz>
+						<izz>0.00490088</izz>
+					</inertia>
+				</inertial>
+				<collision name='link_r_collision'>
+					<pose>0 0 0 0 -0 -3.14159</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/collision/MOTOMAN_AXIS_R.stl</uri>
+						</mesh>
+					</geometry>
+					<surface>
+						<contact>
+							<ode/>
+						</contact>
+						<friction>
+							<ode/>
+						</friction>
+					</surface>
+				</collision>
+				<visual name='link_r_visual'>
+					<pose>0 0 0 0 -0 -3.14159</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/visual/MOTOMAN_AXIS_R.stl</uri>
+						</mesh>
+					</geometry>
+					<material>
+						<script>
+							<name>Gazebo/White</name>
+							<uri>__default__</uri>
+						</script>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<velocity_decay>
+					<linear>0</linear>
+					<angular>0</angular>
+				</velocity_decay>
+				<self_collide>1</self_collide>
+						</link>
+						<joint name='joint_r' type='revolute'>
+				<child>link_r</child>
+				<parent>link_u</parent>
+				<axis>
+					<xyz>0 0 -1</xyz>
+					<limit>
+						<lower>-3.1416</lower>
+						<upper>3.1416</upper>
+						<effort>100</effort>
+						<velocity>3.48</velocity>
+					</limit>
+					<dynamics/>
+				</axis>
+						</joint>
+						<link name='link_b'>
+				<pose>0 0 1.08 0 -0 0</pose>
+				<inertial>
+					<pose>0 0.00743641 0.0787213 0 -0 0</pose>
+					<mass>2.3903</mass>
+					<inertia>
+						<ixx>0.08</ixx>
+						<ixy>0</ixy>
+						<ixz>0</ixz>
+						<iyy>0.00383774</iyy>
+						<iyz>0</iyz>
+						<izz>0.08</izz>
+					</inertia>
+				</inertial>
+				<collision name='link_b_collision'>
+					<pose>0 0 0 -1.57 -6.08702e-22 -3.14159</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/collision/MOTOMAN_AXIS_B.stl</uri>
+						</mesh>
+					</geometry>
+					<surface>
+						<contact>
+							<ode/>
+						</contact>
+						<friction>
+							<ode/>
+						</friction>
+					</surface>
+				</collision>
+				<visual name='link_b_visual'>
+					<pose>0 0 0 -1.57 -6.08702e-22 -3.14159</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/visual/MOTOMAN_AXIS_B.stl</uri>
+						</mesh>
+					</geometry>
+					<material>
+						<script>
+							<name>Gazebo/Blue</name>
+							<uri>__default__</uri>
+						</script>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<velocity_decay>
+					<linear>0</linear>
+					<angular>0</angular>
+				</velocity_decay>
+				<self_collide>1</self_collide>
+						</link>
+						<joint name='joint_b' type='revolute'>
+				<child>link_b</child>
+				<parent>link_r</parent>
+				<axis>
+					<xyz>0 -1 0</xyz>
+					<limit>
+						<lower>-1.91</lower>
+						<upper>1.91</upper>
+						<effort>100</effort>
+						<velocity>3.48</velocity>
+					</limit>
+					<dynamics/>
+				</axis>
+						</joint>
+						<link name='link_t'>
+				<pose>0 0 1.235 0 -0 0</pose>
+				<inertial>
+					<pose>0 0 0 0 -0 0</pose>
+					<mass>0.636704</mass>
+					<inertia>
+						<ixx>0.000584712</ixx>
+						<ixy>0</ixy>
+						<ixz>0</ixz>
+						<iyy>0.000592967</iyy>
+						<iyz>0</iyz>
+						<izz>0.00108139</izz>
+					</inertia>
+				</inertial>
+				<collision name='link_t_collision'>
+					<pose>0 0 0 0 -0 0</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/collision/MOTOMAN_AXIS_T.stl</uri>
+						</mesh>
+					</geometry>
+					<surface>
+						<contact>
+							<ode/>
+						</contact>
+						<friction>
+							<ode/>
+						</friction>
+					</surface>
+				</collision>
+				<visual name='link_t_visual'>
+					<pose>0 0 0 0 -0 0</pose>
+					<geometry>
+						<mesh>
+							<scale>1 1 1</scale>
+							<uri>file://meshes/sia10d/visual/MOTOMAN_AXIS_T.stl</uri>
+						</mesh>
+					</geometry>
+					<material>
+						<script>
+							<name>Gazebo/White</name>
+							<uri>__default__</uri>
+						</script>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<velocity_decay>
+					<linear>0</linear>
+					<angular>0</angular>
+				</velocity_decay>
+				<self_collide>1</self_collide>
+						</link>
+						<joint name='joint_t' type='revolute'>
+				<child>link_t</child>
+				<parent>link_b</parent>
+				<axis>
+					<xyz>0 0 -1</xyz>
+					<limit>
+						<lower>-3.1416</lower>
+						<upper>3.1416</upper>
+						<effort>100</effort>
+						<velocity>6.97</velocity>
+					</limit>
+					<dynamics/>
+				</axis>
+      </joint>
+    </model>
+
+    <model name="robotbox">
+      <pose>0 0 0  0 0 0</pose>
+      <static>true</static>
+      <link name="box">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file://meshes/robotbox.stl</uri></mesh>
+          </geometry>
+					<transparency>0.33</transparency>
+					<material>
+						<ambient>0.7 0.47 0.18 1</ambient>
+					</material>
+        </visual>
+				<collision name="collision">
+          <geometry>
+            <mesh><uri>file://meshes/robotbox.stl</uri></mesh>
+          </geometry>
+        </collision>
+      </link>
+      <joint name="world_robotbox" type="revolute">
+				<parent>world</parent>
+				<child>box</child>
+				<axis><xyz>0 0 1</xyz></axis>
+      </joint>
+    </model>
+
+    <model name="tool_stand">
+      <pose>0.45 .381 -0.0 0 0 -0.7854</pose>
+      <static>true</static>
+      <link name="stand">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file://meshes/stand_simple.stl</uri></mesh>
+          </geometry>
+					<material>
+						<ambient>0.8 0.8 0.8 1</ambient>
+					</material>
+        </visual>
+				<collision name="collision">
+          <geometry>
+            <mesh><uri>file://meshes/stand_simple.stl</uri></mesh>
+          </geometry>
+        </collision>
+      </link>
+      <joint name="world_tool_stand" type="revolute">
+				<parent>world</parent>
+				<child>stand</child>
+				<axis><xyz>0 0 1</xyz></axis>
+      </joint>
+    </model>
+    
+    <model name="kinect">
+    	<pose>0.8298 -0.5334 0 0 0 0</pose>
+    	<static>true</static>
+      <link name="camera">
+				<pose>0 0 0.8 0 1 2.6562</pose>
+				<inertial>
+					<mass>0.1</mass>
+				</inertial>
+				<collision name="collision">
+					<geometry>
+						<box>
+							<size>0.073000 0.276000 0.072000</size>
+						</box>
+					</geometry>
+				</collision>
+				<visual name="visual">
+					<geometry>
+						<mesh>
+							<uri>file://meshes/kinect.dae</uri>
+						</mesh>
+					</geometry>
+				</visual>
+				<sensor name="camera" type="depth">
+					<!--topic>camera_depth</topic-->
+					<update_rate>20</update_rate>
+					<camera>
+						<horizontal_fov>1.047198</horizontal_fov>
+						<image>
+							<width>640</width>
+							<height>480</height>
+							<format>R8G8B8</format>
+						</image>
+						<clip>
+							<near>0.05</near>
+							<far>3</far>
+						</clip>
+					</camera>
+					<plugin name="kinect_controller" filename="libgazebo_ros_openni_kinect.so">
+						<baseline>0.2</baseline>
+						<alwaysOn>true</alwaysOn>
+						<updateRate>1.0</updateRate>
+						<cameraName>kinect_ir</cameraName>
+						<imageTopicName>/kinect/depth/image_raw</imageTopicName>
+						<cameraInfoTopicName>/kinect/depth/camera_info</cameraInfoTopicName>
+						<depthImageTopicName>/kinect/depth/image_raw</depthImageTopicName>
+						<depthImageCameraInfoTopicName>/kinect/depth/camera_info</depthImageCameraInfoTopicName>
+						<pointCloudTopicName>/kinect/depth/points</pointCloudTopicName>
+						<frameName>kinect_frame</frameName>
+						<pointCloudCutoff>0.5</pointCloudCutoff>
+						<!--distortionK1>0.00000001</distortionK1>
+					<distortionK2>0.00000001</distortionK2>
+					<distortionK3>0.00000001</distortionK3>
+					<distortionT1>0.00000001</distortionT1>
+					<distortionT2>0.00000001</distortionT2-->
+						<CxPrime>0</CxPrime>
+						<Cx>0</Cx>
+						<Cy>0</Cy>
+						<focalLength>0</focalLength>
+						<hackBaseline>0</hackBaseline>
+					</plugin>
+				</sensor>
+      </link>
+    </model>
+
+    <model name="pin_tool_storage">
+      <pose>0.525 -.2286 -0.0 3.1416 0 0</pose>
+      <static>true</static>
+      <link name="storage">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file://meshes/pin_tool_fixture.stl</uri></mesh>
+          </geometry>
+					<material>
+						<ambient>0.8 0.8 0.8 1</ambient>
+					</material>
+        </visual>
+				<collision name="collision">
+          <geometry>
+            <mesh><uri>file://meshes/pin_tool_fixture.stl</uri></mesh>
+          </geometry>
+        </collision>
+      </link>
+      <joint name="world_storage" type="revolute">
+				<parent>world</parent>
+				<child>storage</child>
+				<axis><xyz>0 0 1</xyz></axis>
+      </joint>
+    </model>
+
+    <model name="pin_target">
+      <pose>0.525 0 -0.0 1.571 -1.571 0</pose>
+      <static>true</static>
+      <link name="target">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file://meshes/pin_test_target.stl</uri></mesh>
+          </geometry>
+					<material>
+						<ambient>0.8 0.8 0.8 1</ambient>
+					</material>
+        </visual>
+				<collision name="collision">
+          <geometry>
+            <mesh><uri>file://meshes/pin_test_target.stl</uri></mesh>
+          </geometry>
+        </collision>
+      </link>
+      <joint name="world_target" type="revolute">
+				<parent>world</parent>
+				<child>target</child>
+				<axis><xyz>0 0 1</xyz></axis>
+      </joint>
+    </model>
+
+  </world>
+</sdf>
+
+<!--model name="downdraft">
+      <pose>-0.8 0 -0.5 1.57 0 0</pose>
+      <static>true</static>
+      <link name="downdraft">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file://meshes/downdraft.stl</uri></mesh>
+          </geometry>
+	  <transparency>0.33</transparency>
+	  <material>
+	    <ambient>0.7 0.47 0.18 1</ambient>
+	  </material>
+        </visual>
+	<collision name="collision">
+          <geometry>
+            <mesh><uri>file://meshes/downdraft.stl</uri></mesh>
+          </geometry>
+        </collision>
+      </link>
+      <joint name="world_downdraft" type="revolute">
+	<parent>world</parent>
+	<child>downdraft</child>
+	<axis><xyz>0 0 1</xyz></axis>
+      </joint>
+    </model-->

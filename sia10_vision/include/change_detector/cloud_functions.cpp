@@ -1,0 +1,453 @@
+#include <ros/ros.h>
+// PCL specific includes
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
+//#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+//#include <pcl/ModelCoefficients.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/filters/extract_indices.h>
+//#include <pcl/filters/passthrough.h>
+#include <pcl/features/normal_3d.h>
+//#include <pcl/sample_consensus/method_types.h>
+//#include <boost/thread/thread.hpp>
+#include <pcl/registration/icp.h>
+#include <pcl/filters/approximate_voxel_grid.h>
+//#include <pcl/registration/correspondence_estimation.h>
+#include <pcl/segmentation/segment_differences.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include <sensor_msgs/PointCloud2.h>
+
+#include <eigen3/Eigen/src/Geometry/Transform.h>
+
+
+typedef pcl::PointXYZ PointT;
+
+pcl::PointCloud<PointT>::Ptr original_cloud (new pcl::PointCloud<PointT>);
+
+ros::Publisher pub;
+ros::Publisher pub_original;
+ros::Publisher pub_diff_removed;
+ros::Publisher pub_diff_added;
+
+			pcl::PointCloud<PointT> removePlane(pcl::PointCloud<PointT> cloud){
+					pcl::ModelCoefficients coefficients;
+					pcl::SACSegmentation<PointT> seg;
+					pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
+
+					seg.setOptimizeCoefficients (true);
+					// Mandatory
+					seg.setModelType (pcl::SACMODEL_PLANE);
+					seg.setMethodType (pcl::SAC_RANSAC);
+					Eigen::Vector3f norm(0, 0.540239, 0.841511);
+					seg.setDistanceThreshold (0.0001);
+			 
+					seg.setMaxIterations (100);
+					seg.setInputCloud (cloud.makeShared());
+					seg.segment (*inliers, coefficients); 
+			 
+					pcl::PointCloud<PointT>::Ptr cloud_p (new pcl::PointCloud<PointT>);
+					pcl::ExtractIndices<PointT> extract;
+					extract.setInputCloud (cloud.makeShared());
+					extract.setIndices (inliers);
+					extract.setNegative (true);
+					extract.filter (*cloud_p);
+				 
+					return *cloud_p;
+				 
+			}
+
+			pcl::PointCloud<PointT>::Ptr iterativeClosestPoint(pcl::PointCloud<PointT>::Ptr cloud, pcl::PointCloud<PointT>::Ptr cloud_compare){
+					pcl::IterativeClosestPoint<PointT,PointT> icp;
+					icp.setInputSource(cloud);
+					icp.setInputTarget(cloud_compare);
+					pcl::PointCloud<PointT>::Ptr output (new pcl::PointCloud<PointT>);
+					icp.align(*output);
+					return output;
+			}
+
+
+
+/*
+pcl::PointCloud<PointT>::Ptr iterativeClosestPoint(pcl::PointCloud<PointT>::Ptr cloud, pcl::PointCloud<PointT>::Ptr cloud_compare, const Eigen::Affine3f &guess ){
+     pcl::IterativeClosestPoint<PointT,PointT> icp;
+    icp.setInputCloud(cloud);
+    icp.setInputTarget(cloud_compare);
+    pcl::PointCloud<PointT>::Ptr output (new pcl::PointCloud<PointT>);
+    Eigen::Matrix4f guess2;
+    guess2.matrix() = guess.matrix();
+    icp.align(*output,guess2);
+    return output;
+}
+
+
+pcl::PointCloud<PointT>::Ptr iterativeClosestPoint(pcl::PointCloud<PointT>::Ptr cloud, pcl::PointCloud<PointT>::Ptr cloud_compare, const Eigen::Matrix4f &guess ){
+
+    
+    pcl::IterativeClosestPoint<PointT,PointT> icp;
+    icp.setInputCloud(cloud);
+    icp.setInputTarget(cloud_compare);
+    pcl::PointCloud<PointT>::Ptr output (new pcl::PointCloud<PointT>);
+    icp.align(*output,guess);
+    return output;
+}*/
+
+					pcl::PointCloud<PointT>::Ptr downSampleByVoxel(pcl::PointCloud<PointT>::Ptr cloud){
+						pcl::PointCloud<PointT>::Ptr filtered_cloud (new pcl::PointCloud<PointT>);
+						pcl::ApproximateVoxelGrid<PointT> approximate_voxel_filter;
+						approximate_voxel_filter.setLeafSize (0.01, 0.01, 0.01);
+						approximate_voxel_filter.setInputCloud (cloud);
+						approximate_voxel_filter.filter (*filtered_cloud);
+						return filtered_cloud;
+					}
+
+			pcl::PointCloud<PointT>::Ptr cloudSegmentDifferences(pcl::PointCloud<PointT>::Ptr cloud,pcl::PointCloud<PointT>::Ptr target){
+				 // std::cout << "Segmentation input cloud has " << cloud->points.size() << " points" << std::endl;
+					pcl::PointCloud<PointT>::Ptr output (new pcl::PointCloud<PointT>);
+					pcl::SegmentDifferences< PointT > seg;
+					seg.setInputCloud(cloud);
+					seg.setTargetCloud(target);
+					seg.setDistanceThreshold(0.001);
+					seg.segment(*output);
+					// std::cout << "Segmentation output cloud has " << output->points.size() << " points" << std::endl;
+					return output;
+					//return output;
+				
+			}
+
+			std::vector<pcl::PointIndices> extractClusters(pcl::PointCloud<PointT>::Ptr cloud){
+					std::vector<pcl::PointIndices> cluster_indices;
+					if(cloud->points.size() <= 0){
+						  return cluster_indices;
+					}
+					pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+					tree->setInputCloud (cloud);
+
+					pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+					ec.setClusterTolerance (0.1);
+					ec.setMinClusterSize (50);
+					ec.setMaxClusterSize (25000);
+					ec.setSearchMethod (tree);
+					ec.setInputCloud (cloud);
+					ec.extract (cluster_indices);
+					return cluster_indices;    
+			}
+/*
+pcl::PointCloud<PointT>::Ptr mergeClouds(std::vector<pcl::PointCloud<PointT>::Ptr> cloudVector){
+    
+  pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+  //int totalSize;
+  
+  for(std::vector<pcl::PointCloud<PointT>::Ptr>::iterator individualCloud = cloudVector.begin(); individualCloud != cloudVector.end(); ++individualCloud){
+      //output_cloud->push_back(*p1);
+      //totalSize += individualCloud->size();
+      pcl::PointCloud<PointT>::Ptr currentCloud = *individualCloud;
+      for(pcl::PointCloud<PointT>::iterator p1 = currentCloud->begin(); p1 != currentCloud->end(); ++p1){
+          output_cloud->push_back(*p1);
+      }
+      
+      
+  }
+  
+  /*for(std::vector<pcl::PointCloud<PointT>::size_t i = 0; i != cloudVector->size(); i++) {
+    
+    }*/
+
+  
+  /*for(std::vector<pcl::PointCloud<PointT>::Ptr>::iterator cloudVectIterator = cloudVector.begin(); cloudVectIterator != cloudVector.end(); ++cloudVectIterator){
+      for(pcl::PointCloud<PointT>::iterator p1 = *cloudVector.begin(); p1 != *cloudVector.end(); ++p1){
+          output_cloud->push_back(*p1);
+      }
+  }*/
+/*  
+  return output_cloud;
+}*/
+/*
+pcl::PointCloud<PointT>::Ptr mergeClouds(pcl::PointCloud<PointT>::Ptr cloud_1,pcl::PointCloud<PointT>::Ptr cloud_2){
+    
+  pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    
+  for(pcl::PointCloud<PointT>::iterator p1 = cloud_1->begin(); p1 != cloud_1->end(); ++p1){
+      output_cloud->push_back(*p1);
+  }
+  
+  for(pcl::PointCloud<PointT>::iterator p1 = cloud_2->begin(); p1 != cloud_2->end(); ++p1){
+      output_cloud->push_back(*p1);
+  }
+  
+  return output_cloud;
+}
+
+pcl::PointCloud<PointT>::Ptr mergeClouds(pcl::PointCloud<PointT>::Ptr cloud_1,pcl::PointCloud<PointT>::Ptr cloud_2,pcl::PointCloud<PointT>::Ptr cloud_3){
+    
+  pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    
+  for(pcl::PointCloud<PointT>::iterator p1 = cloud_1->begin(); p1 != cloud_1->end(); ++p1){
+      output_cloud->push_back(*p1);
+  }
+  
+  for(pcl::PointCloud<PointT>::iterator p1 = cloud_2->begin(); p1 != cloud_2->end(); ++p1){
+      output_cloud->push_back(*p1);
+  }
+  
+  for(pcl::PointCloud<PointT>::iterator p1 = cloud_3->begin(); p1 != cloud_3->end(); ++p1){
+      output_cloud->push_back(*p1);
+  }
+  
+  return output_cloud;
+}
+
+pcl::PointCloud<PointT>::Ptr alignAndMergeClouds(pcl::PointCloud<PointT>::Ptr cloud_1,pcl::PointCloud<PointT>::Ptr cloud_2){
+    pcl::PointCloud<PointT>::Ptr output_cloud (new pcl::PointCloud<PointT>);
+   
+    /*std::cout << "Preforming ICP alignment . . . . "; std::cout.flush(); 						
+    output_cloud = iterativeClosestPoint(cloud_1,cloud_2);
+    std::cout << "Complete" << std::endl; std::cout.flush();*//*
+    output_cloud = cloud_1;
+     std::cout << "Merging Aligned Clouds . . . . . "; std::cout.flush();
+    output_cloud = mergeClouds(cloud_1,cloud_2);
+    std::cout << "Complete" << std::endl; std::cout.flush();
+    return output_cloud;
+}
+void validateCloud(pcl::PointCloud<PointT>::Ptr cloud){
+  for(pcl::PointCloud<PointT>::iterator p1 = cloud->begin(); p1 != cloud->end(); ++p1){
+      PointT currentPoint = *p1;
+      
+      std::cout << "Point: " << currentPoint << std::endl;
+      //output_cloud->push_back(*p1);
+      return;
+  }
+}*/
+
+			pcl::PointCloud<PointT>::Ptr mergeClusters(pcl::PointCloud<PointT>::Ptr cloud, std::vector<pcl::PointIndices> cluster_indices){
+				int j = 0;
+				pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+				 
+				for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+				{
+				 
+					for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++)
+						cloud_cluster->points.push_back (cloud->points[*pit]); 
+					cloud_cluster->width = cloud_cluster->points.size ();
+					cloud_cluster->height = 1;
+					cloud_cluster->is_dense = true;
+
+					j++;
+				}
+					return cloud_cluster;
+			}
+
+			pcl::PointCloud<PointT>::Ptr distanceThreshold(pcl::PointCloud<PointT>::Ptr cloud, double min_distance = 0, double max_distance = 1.5){
+					pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+				
+					for(pcl::PointCloud<PointT>::iterator p1 = cloud->begin(); p1 != cloud->end(); ++p1){
+						  if(p1->z >= min_distance && p1->z <= max_distance){
+						      output_cloud->push_back(*p1);
+						  }
+
+					}
+				
+					return output_cloud;
+			}
+
+			int compareRawClouds(pcl::PointCloud<PointT>::Ptr cloud, pcl::PointCloud<PointT>::Ptr original_cloud){
+					int outputReturn = 0;
+					std::cout << "Down sampleing input cloud . . . "; std::cout.flush();
+					cloud = downSampleByVoxel(cloud);
+					std::cout << "Complete" << std::endl; std::cout.flush();
+				
+					std::cout << "Down sampleing target cloud . . . "; std::cout.flush();
+					original_cloud = downSampleByVoxel(original_cloud);
+					std::cout << "Complete" << std::endl; std::cout.flush();
+				
+					std::cout << "Distance threshold input cloud . "; std::cout.flush();
+					cloud = distanceThreshold(cloud);
+					std::cout << "Complete" << std::endl; std::cout.flush();
+				
+					std::cout << "Distance threshold target cloud  "; std::cout.flush();
+					original_cloud = distanceThreshold(original_cloud);
+					std::cout << "Complete" << std::endl; std::cout.flush();
+				
+					std::cout << "Preforming ICP alignment . . . . "; std::cout.flush();  
+					pcl::PointCloud<PointT>::Ptr cloud_transformed (new pcl::PointCloud<PointT>);
+					cloud_transformed = iterativeClosestPoint(cloud,original_cloud);        
+					std::cout << "Complete" << std::endl; std::cout.flush();
+					 
+				
+				
+					std::cout << "Segmenting differences removed . "; std::cout.flush();
+					pcl::PointCloud<PointT>::Ptr cloud_diff_removed (new pcl::PointCloud<PointT>);
+					cloud_diff_removed = cloudSegmentDifferences(original_cloud,cloud_transformed);
+					std::cout << "Complete" << std::endl; std::cout.flush();
+				
+					 
+					std::cout << "Segmenting differences added . . "; std::cout.flush();
+					pcl::PointCloud<PointT>::Ptr cloud_diff_added (new pcl::PointCloud<PointT>);
+					cloud_diff_added = cloudSegmentDifferences(cloud_transformed,original_cloud);
+					std::cout << "Complete" << std::endl; std::cout.flush();
+					
+					std::cout << "Removing Planes . . . . . . . .  "; std::cout.flush();
+					*cloud_diff_removed = removePlane(*cloud_diff_removed);
+					*cloud_diff_added = removePlane(*cloud_diff_added);
+					std::cout << "Complete" << std::endl; std::cout.flush();				
+				
+					std::cout << "Locating Clusters Removed  . . . "; std::cout.flush();
+					std::vector<pcl::PointIndices> cluster_indices_removed;
+					cluster_indices_removed = extractClusters(cloud_diff_removed);
+					std::cout << "Complete (" << cluster_indices_removed.size() << " clusters found)" << std::endl; std::cout.flush();
+					outputReturn += cluster_indices_removed.size();
+				
+					std::cout << "Locating Clusters Added  . . . . "; std::cout.flush();
+					std::vector<pcl::PointIndices> cluster_indices_added;
+					cluster_indices_added = extractClusters(cloud_diff_added);
+					std::cout << "Complete (" << cluster_indices_added.size() << " clusters found)" << std::endl; std::cout.flush();
+					outputReturn += cluster_indices_added.size();
+				
+					std::cout << "Extracting Clusters Removed . .  "; std::cout.flush();
+					cloud_diff_removed = mergeClusters(cloud_diff_removed,cluster_indices_removed);
+					std::cout << "Complete" << std::endl; std::cout.flush();
+				
+					std::cout << "Extracting Clusters Added  . . . "; std::cout.flush();
+					cloud_diff_added = mergeClusters(cloud_diff_added,cluster_indices_added);
+					std::cout << "Complete" << std::endl; std::cout.flush();
+
+				
+					cloud_diff_removed->points.push_back (PointT(1,1,1)); 
+					cloud_diff_removed->width = cloud_diff_removed->points.size ();
+					cloud_diff_removed->height = 1;
+					cloud_diff_removed->is_dense = true;
+				
+					cloud_diff_added->points.push_back (PointT(1,1,1));
+					cloud_diff_added->width = cloud_diff_added->points.size ();
+					cloud_diff_added->height = 1;
+					cloud_diff_added->is_dense = true;
+				
+					std::cout << "Publishing results . . . . . . . "; std::cout.flush();
+				
+					sensor_msgs::PointCloud2 output;
+					pcl::toROSMsg(*cloud_transformed, output);
+					output.header.frame_id = "/kinect_frame";
+					pub.publish (output);
+						
+					sensor_msgs::PointCloud2 output_original;
+					pcl::toROSMsg(*original_cloud, output_original);
+					output_original.header.frame_id = "/kinect_frame";
+					pub_original.publish (output_original);
+
+					sensor_msgs::PointCloud2 output_diff_removed;
+					pcl::toROSMsg(*cloud_diff_removed, output_diff_removed);
+					output_diff_removed.header.frame_id = "/kinect_frame";
+					pub_diff_removed.publish (output_diff_removed);
+				
+					sensor_msgs::PointCloud2 output_diff_added;
+					pcl::toROSMsg(*cloud_diff_added, output_diff_added);
+					output_diff_added.header.frame_id = "/kinect_frame";
+					pub_diff_added.publish (output_diff_added);
+					
+					/*while (ros::ok())
+					{
+						pub_diff_removed.publish (output_diff_removed);
+						pub_diff_added.publish (output_diff_added);
+					}*/
+				
+					std::cout << "Complete" << std::endl; std::cout.flush();
+					ros::spinOnce();
+					return  outputReturn;
+			}
+
+/*void cloud_callback_2 (const sensor_msgs::PointCloud2ConstPtr& input){
+    
+    pcl::PointCloud<PointT>::Ptr temp_cloud (new pcl::PointCloud<PointT>);
+
+    std::cout << "\nNew depth cloud received:" << std::endl; std::cout.flush();
+
+    pcl::fromROSMsg(*input,*temp_cloud);
+    std::cout << "Down sampleing input cloud . . . "; std::cout.flush();
+    temp_cloud = downSampleByVoxel(temp_cloud);
+    std::cout << "Complete" << std::endl; std::cout.flush();
+ 
+    std::cout << "Preforming ICP alignment . . . . "; std::cout.flush();  
+   
+    //pcl::IterativeClosestPoint<PointT,PointT> icp;
+    //icp = iterativeClosestPoint(temp_cloud,original_cloud);
+    pcl::PointCloud<PointT>::Ptr cloud_transformed (new pcl::PointCloud<PointT>);
+    cloud_transformed = iterativeClosestPoint(temp_cloud,original_cloud);        
+    std::cout << "Complete" << std::endl; std::cout.flush();
+*/     
+    
+  /*  std::cout << "Transforming point cloud . . . "; std::cout.flush();
+    pcl::PointCloud<PointT>::Ptr cloud_transformed (new pcl::PointCloud<PointT>);
+    pcl::transformPointCloud(*temp_cloud,*cloud_transformed,icp.getFinalTransformation());
+    std::cout << "Complete!" << std::endl; std::cout.flush();*/
+    
+    
+/*    std::cout << "Segmenting differences removed . "; std::cout.flush();
+    pcl::PointCloud<PointT>::Ptr cloud_diff_removed (new pcl::PointCloud<PointT>);
+    cloud_diff_removed = cloudSegmentDifferences(original_cloud,cloud_transformed);
+    std::cout << "Complete" << std::endl; std::cout.flush();
+    
+     
+    std::cout << "Segmenting differences added . . "; std::cout.flush();
+    pcl::PointCloud<PointT>::Ptr cloud_diff_added (new pcl::PointCloud<PointT>);
+    cloud_diff_added = cloudSegmentDifferences(cloud_transformed,original_cloud);
+    std::cout << "Complete" << std::endl; std::cout.flush();
+    
+    
+    std::cout << "Locating Clusters Removed  . . . "; std::cout.flush();
+    std::vector<pcl::PointIndices> cluster_indices_removed;
+    cluster_indices_removed = extractClusters(cloud_diff_removed);
+    std::cout << "Complete (" << cluster_indices_removed.size() << " clusters found)" << std::endl; std::cout.flush();
+    
+    std::cout << "Locating Clusters Added  . . . . "; std::cout.flush();
+    std::vector<pcl::PointIndices> cluster_indices_added;
+    cluster_indices_added = extractClusters(cloud_diff_added);
+    std::cout << "Complete (" << cluster_indices_added.size() << " clusters found)" << std::endl; std::cout.flush();
+    
+    std::cout << "Extracting Clusters Removed . .  "; std::cout.flush();
+    cloud_diff_removed = mergeClusters(cloud_diff_removed,cluster_indices_removed);
+    std::cout << "Complete" << std::endl; std::cout.flush();
+    
+    std::cout << "Extracting Clusters Added  . . . "; std::cout.flush();
+    cloud_diff_added = mergeClusters(cloud_diff_added,cluster_indices_added);
+    std::cout << "Complete" << std::endl; std::cout.flush();
+    
+
+    cloud_diff_removed->points.push_back (PointT(1,1,1)); 
+    cloud_diff_removed->width = cloud_diff_removed->points.size ();
+    cloud_diff_removed->height = 1;
+    cloud_diff_removed->is_dense = true;
+    
+    cloud_diff_added->points.push_back (PointT(1,1,1));
+    cloud_diff_added->width = cloud_diff_added->points.size ();
+    cloud_diff_added->height = 1;
+    cloud_diff_added->is_dense = true;
+    
+    std::cout << "Publishing results . . . . . . . "; std::cout.flush();
+    
+    sensor_msgs::PointCloud2 output;
+    pcl::toROSMsg(*cloud_transformed, output);
+    output.header.frame_id = input->header.frame_id;
+    pub.publish (output);
+      
+    sensor_msgs::PointCloud2 output_original;
+    pcl::toROSMsg(*original_cloud, output_original);
+    output_original.header.frame_id = input->header.frame_id;
+    pub_original.publish (output_original);
+
+    sensor_msgs::PointCloud2 output_diff_removed;
+    pcl::toROSMsg(*cloud_diff_removed, output_diff_removed);
+    output_diff_removed.header.frame_id = input->header.frame_id;
+    pub_diff_removed.publish (output_diff_removed);
+    
+    sensor_msgs::PointCloud2 output_diff_added;
+    pcl::toROSMsg(*cloud_diff_added, output_diff_added);
+    output_diff_added.header.frame_id = input->header.frame_id;
+    pub_diff_added.publish (output_diff_added);
+    
+    std::cout << "Complete" << std::endl; std::cout.flush();
+    ros::spinOnce();
+   
+}*/
+

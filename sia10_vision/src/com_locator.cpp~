@@ -1,0 +1,316 @@
+#include <ros/ros.h>
+#include <ros/package.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <numeric>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <unistd.h>
+#include "change_detector/cloud_functions.cpp"
+#include <tf/transform_listener.h>
+#include <tf/transform_datatypes.h>
+#include <tf_conversions/tf_eigen.h>
+#include <algorithm>
+#include <eigen3/Eigen/src/Geometry/Transform.h>
+
+#include <geometry_msgs/PoseStamped.h>
+/*#include <pcl/sample_consensus/ransac.h>
+#include <pcl/sample_consensus/sac_model_cylinder.h>*/
+
+#include <pcl/ModelCoefficients.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+
+using namespace std;
+typedef pcl::PointXYZ PointT;
+typedef pcl::Normal PointNT;
+
+bool needPointClouds = false;
+ros::NodeHandle *nh;
+pcl::PointCloud<PointT>::Ptr add_cloud (new pcl::PointCloud<PointT>), rem_cloud (new pcl::PointCloud<PointT>);
+pcl::ModelCoefficients::Ptr coefficients_add (new pcl::ModelCoefficients), coefficients_rem (new pcl::ModelCoefficients);
+
+boost::shared_ptr< tf::TransformListener> tf_listener;
+
+/*-------------------------------------------------------
+ * Function:    cloud_callback
+ * 
+ * Callback target function from /camera/depth/points subscription. 
+ * Function modifies global variable 'current_cloud' to a pcl::PointCloud<PointT>::Ptr representation
+ * of the most up to date cloud available from the ROS topic
+ * 
+ * @input:      sensor_msgs::PointCloud2ConstPtr& from node callback
+ *  
+ * ---------------------------------------------------------*/
+
+void cloud_callback_add (const sensor_msgs::PointCloud2ConstPtr& input)
+{   
+  //Check if we even need to do anything with the incoming point cloud
+  if (needPointClouds == true )
+  {  
+      pcl::fromROSMsg(*input,*add_cloud);
+      std::vector<int> indicies;
+      pcl::removeNaNFromPointCloud(*add_cloud, *add_cloud, indicies);   
+  } 
+}
+
+void cloud_callback_rem (const sensor_msgs::PointCloud2ConstPtr& input)
+{   
+  //Check if we even need to do anything with the incoming point cloud
+  if (needPointClouds == true )
+  {  
+      pcl::fromROSMsg(*input,*rem_cloud);
+      std::vector<int> indicies;
+      pcl::removeNaNFromPointCloud(*rem_cloud, *rem_cloud, indicies);
+      needPointClouds = false;
+  } 
+}
+
+/*-------------------------------------------------------
+ *  Function:   getPointCloudWait
+ * 
+ * Waits for a new point cloud to be recieved from cloud_callback(). 
+ * On return global pcl::PointCloud<PointT>::Ptr current_cloud will be updated.
+ * 
+ * ---------------------------------------------------------*/
+
+void getPointCloudsWait()
+{
+  //Set the global flag and wait around untill we have a new cloud
+  needPointClouds = true;
+  while (needPointClouds == true && ros::ok()) {
+    //std::cout << "Waiting for new cloud" << std::endl;
+    ros::Duration(1).sleep();
+    ros::spinOnce();
+    std::cout << ". "; std::cout.flush();
+  }
+}
+
+/*-------------------------------------------------------
+ *  Function:   FindCoefficients
+ * 
+ * Finds and returns coefficients of a model fitting the input cloud.
+ * Currently assumes model is a cylinder, but could be expanded
+ *   for other shapes if desired
+ * 
+ * ---------------------------------------------------------*/
+ 
+pcl::ModelCoefficients FindCoefficients(pcl::PointCloud<PointT>::Ptr cloud)
+{
+	pcl::SACSegmentationFromNormals<PointT, PointNT> seg;
+  pcl::NormalEstimation<PointT, PointNT> ne;
+  pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
+    
+  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+  pcl::PointIndices inliers;
+  pcl::ModelCoefficients coefficients ;
+    
+  ne.setSearchMethod (tree);
+  ne.setInputCloud (cloud);
+	ne.setKSearch (50);
+	ne.compute (*cloud_normals);
+  
+	seg.setOptimizeCoefficients (true);
+	seg.setModelType (pcl::SACMODEL_CYLINDER);
+	seg.setMethodType (pcl::SAC_RANSAC);
+	seg.setNormalDistanceWeight (0.1);
+	seg.setMaxIterations (10000);
+	seg.setDistanceThreshold (0.005);
+	seg.setRadiusLimits (0, 0.1);
+	seg.setInputCloud (cloud);
+	seg.setInputNormals (cloud_normals);
+
+	// Obtain the cylinder inliers and coefficients
+	seg.segment (inliers, coefficients);
+	return coefficients;
+}
+
+/*-------------------------------------------------------
+ *  Function:   CreatePose
+ * 
+ * Converts the cylinder coefficient values to a 
+ * 	PoseStamped message ready for publishing
+ *  (removes radius value, which we don't care about)
+ * 
+ * ---------------------------------------------------------*/
+ 
+geometry_msgs::PoseStamped CreatePose(pcl::ModelCoefficients coeff) //,int a, int b, int c, int d, int e, int f)
+{
+	geometry_msgs::PoseStamped pose;
+	Eigen::Quaterniond orient;
+	geometry_msgs::Quaternion gq;
+		
+	pose.header.frame_id = coeff.header.frame_id;
+	
+	Eigen::Vector3d vdefault(0,1,0) , vcoeff(coeff.values[3],coeff.values[5],coeff.values[4]);
+	orient = Eigen::Quaterniond().setFromTwoVectors(vcoeff,vdefault);
+		
+	pose.pose.position.x = coeff.values[0];
+	pose.pose.position.y = coeff.values[1];
+	pose.pose.position.z = coeff.values[2];
+	
+	/*tf::Quaternion tq = tf::createQuaternionFromRPY(coeff.values[a],coeff.values[b],coeff.values[c]);
+	tf::quaternionTFToMsg(tq,gq);
+	pose.pose.orientation = gq;*/
+	
+	/*pose.pose.orientation.x = coeff.values[a];
+	pose.pose.orientation.y	= coeff.values[b];
+	pose.pose.orientation.z = coeff.values[c];
+	pose.pose.orientation.w = w;*/
+	
+	pose.pose.orientation.x = orient.x();
+	pose.pose.orientation.y	= orient.y();
+	pose.pose.orientation.z = orient.z();
+	pose.pose.orientation.w = orient.w();
+		
+	return pose;
+}
+/*-------------------------------------------------------
+ *  Function:   wait
+ * 
+ * Waits for user input to continue 
+ * 
+ * ---------------------------------------------------------*/
+
+void wait()
+{
+  std::cout << "Press ENTER to exit...";
+  std::cin.ignore( std::numeric_limits <std::streamsize> ::max(), '\n' );
+}
+
+void sleepok(int t, ros::NodeHandle &nh)
+{
+  if (nh.ok())
+    sleep(t);
+}
+
+int main(int argc, char** argv)
+{
+		ros::init(argc, argv, "com_locator");
+		nh = new ros::NodeHandle;
+		ros::Subscriber sub_add = nh->subscribe("/camera/depth/diff_added", 1, cloud_callback_add);
+		ros::Subscriber sub_rem = nh->subscribe("/camera/depth/diff_removed", 1, cloud_callback_rem);    
+		ros::Publisher pub_add = nh->advertise<geometry_msgs::PoseStamped>("/objects/com/added_object", 5, true);
+		ros::Publisher pub_rem = nh->advertise<geometry_msgs::PoseStamped>("/objects/com/removed_object", 5, true);
+		 
+		tf_listener.reset(new tf::TransformListener);
+		sleepok(1, *nh);         
+		
+	while (ros::ok())
+	{ 
+		/*int a, b, c, d, e, f;
+		std::cout << "Enter axis order: " << std::endl;
+		std::cin >> a;
+		std::cin >> b;
+		std::cin >> c;
+		std::cin >> d;
+		std::cin >> e;
+		std::cin >> f;*/
+		                                                        
+		std::cout << "Waiting for clouds . . . "; std::cout.flush();
+		getPointCloudsWait();
+		std::cout << "Complete" << std::endl; std::cout.flush();
+		
+		*coefficients_add = FindCoefficients(add_cloud);
+		std::cerr << "'Add' Cylinder coefficients: \n" << *coefficients_add << std::endl;
+		geometry_msgs::PoseStamped add_pose = CreatePose(*coefficients_add);//, a, b, c, d, e, f);
+		pub_add.publish(add_pose);
+		
+		*coefficients_rem = FindCoefficients(rem_cloud);
+		std::cerr << "'Remove' Cylinder coefficients: \n" << *coefficients_rem << std::endl;
+		geometry_msgs::PoseStamped rem_pose = CreatePose(*coefficients_rem);//, a, b, c, d, e, f);
+		pub_rem.publish(rem_pose);
+    
+    /*
+    pcl::SACSegmentationFromNormals<PointT, PointNT> seg;
+    pcl::NormalEstimation<PointT, PointNT> ne;
+    pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
+    
+    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+    pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+    
+  	ne.setSearchMethod (tree);
+  	ne.setInputCloud (add_cloud);
+		ne.setKSearch (50);
+		ne.compute (*cloud_normals);
+  
+		seg.setOptimizeCoefficients (true);
+		seg.setModelType (pcl::SACMODEL_CYLINDER);
+		seg.setMethodType (pcl::SAC_RANSAC);
+		seg.setNormalDistanceWeight (0.1);
+		seg.setMaxIterations (10000);
+		seg.setDistanceThreshold (0.05);
+		seg.setRadiusLimits (0, 0.1);
+		seg.setInputCloud (add_cloud);
+		seg.setInputNormals (cloud_normals);
+
+		// Obtain the cylinder inliers and coefficients
+		seg.segment (*inliers, *coefficients_add);
+		std::cerr << "'Add' Cylinder coefficients: \n" << *coefficients_add << std::endl;
+		*/
+    
+/*------		                                  
+		if(i == 0){
+		  pcl::io::savePCDFileASCII (fileName.c_str(), *current_cloud);
+		  std::cout << "No matching pcd file could be found, creating initial scan to " << fileName  << std::endl;
+		  sensor_msgs::PointCloud2 output;
+		  current_cloud = downSampleByVoxel(current_cloud);
+		  pcl::toROSMsg(*current_cloud, output);
+		  output.header.frame_id = "/map";
+		  pub.publish (output);
+		                                  
+		}else{                                   
+		  i--;  //If you want to use the last point cloud collected each time
+		  // i=0;    //If you want to use the first point cloud collected
+		  fileName = pcdDirectory;
+		  fileName = fileName.append("snapshot").append(intToString(i)).append(".pcd");
+		  pcl::PointCloud<PointT>::Ptr original_cloud (new pcl::PointCloud<PointT>);
+		  pcl::io::loadPCDFile<PointT> (fileName.c_str(), *original_cloud);
+		  std::cout << "requesting difference map for file " <<  fileName << std::endl;
+		  int k = compareRawClouds(current_cloud,original_cloud);
+		  if(k > 0){
+		  	i++;
+		  	fileName = pcdDirectory;
+		  	fileName = fileName.append("snapshot").append(intToString(i)).append(".pcd");
+		  	std::cout << "Changes detected, saving new scan to " << fileName  << std::endl; 
+		  	pcl::io::savePCDFileASCII (fileName.c_str(), *current_cloud);
+		  }
+		}
+		                                  
+		//Give ROS a ton of chances to actually publish the clouds
+		std::cout << "Spinning ROS";
+
+		for(int j=0;j<20;j++){
+		  ros::Duration(0.1).sleep();
+		  ros::spinOnce();
+		  std::cout << " ."; std::cout.flush();
+		}
+		std::cout << std::endl;
+*///-----		
+		//wait();
+		break; 
+  }
+  return 0;
+}
+
+
+
+		/*
+		pcl::SampleConsensusModelCylinder<PointT,PointNT>::Ptr cyl_model(new pcl::SampleConsensusModelCylinder<PointT,PointNT> (add_cloud));
+		//pcl::SampleConsensusModelSphere<pcl::PointXYZ>::Ptr model_s(new pcl::SampleConsensusModelSphere<pcl::PointXYZ> (cloud));
+
+		std::vector<int> inliers;
+		//std::cout << *cyl_model->indices_ << std::endl;
+
+		pcl::RandomSampleConsensus<PointT> ransac (cyl_model);
+    ransac.setDistanceThreshold (.01);
+    //ransac.computeModel();
+    ransac.getInliers(inliers);
+    
+    cyl_model.computeModelCoefficients(inliers,Coeffs);
+    */

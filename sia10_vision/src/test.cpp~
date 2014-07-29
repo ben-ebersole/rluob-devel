@@ -1,0 +1,41 @@
+#include <tf/transform_listener.h>
+#include <tf/transform_datatypes.h>
+#include <geometry_msgs/Vector3Stamped.h>
+#include <ros/ros.h>
+
+int main(int argc, char **argv)
+{
+  ros::init(argc, argv, "tf_test_node");
+  ros::NodeHandle n;
+  
+  ros::Publisher pub = n.advertise<geometry_msgs::Vector3Stamped>("/vector", 5, true);
+  
+  tf::TransformListener listener;
+  bool fail;
+  
+  geometry_msgs::Vector3Stamped input;
+  geometry_msgs::Vector3Stamped output;
+  
+  input.header.frame_id = "/base_link"
+  input.vector.x = 0;
+  input.vector.y = 0;
+  input.vector.z = 1;
+  
+  while (fail == true)
+  {
+  	fail = false;
+    ros::spinOnce();
+		try
+		{
+		  listener.transformVector("/kinect_frame", input, output);
+		}
+		catch (tf::TransformException &ex)
+		{
+		  ROS_ERROR("%s",ex.what());
+		  ros::Duration(1.0).sleep();
+		  fail = true;
+		}
+  }
+  pub.publish(output);
+	return 0;
+}
