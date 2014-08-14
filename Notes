@@ -1,0 +1,32 @@
+PCL Instructions
+http://pointclouds.org/downloads/linux.html
+ 
+   <launch>
+   <node pkg="tf2_ros" type="static_transform_publisher" name="kinect_frame broadcaster" args="0.8298 -0.5334 0.8 0.821683 0.495573 -0.145385 -0.241055 base_link kinect_frame" />
+   <node pkg="tf" type="static_transform_publisher" name="base_link broadcaster" args="0 0 0 0 0 0 world base_link 100" />
+   </launch>
+   
+http://www.pcl-users.org/Finding-the-center-point-in-cylinder-model-td4000488.html
+
+
+
+
+*deprecated* rosrun tf static_transform_publisher 0.8298 -0.5334 0.8 1.0854 0 -2.5708 world kinect_frame 100
+
+Bookmarks:
+GUI - 
+	http://qt-project.org/doc/qt-4.8/qml-workerscript.html
+	https://help.ubuntu.com/community/UnityLaunchersAndDesktopFiles
+	http://askubuntu.com/questions/288494/run-system-commands-from-qml-app
+	http://talk.maemo.org/showthread.php?t=87580
+	
+*get Ubuntu SDK*
+
+Helpful Commands:
+
+rosrun gazebo_ros spawn_model
+roslaunch urdf_tutorial display.launch model:=
+ln -s <package path> <package name>
+grep -rnw 'directory' -e "pattern"
+diff
+
